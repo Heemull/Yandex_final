@@ -18,10 +18,13 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 
 // addTaskHandler обрабатывает POST /api/task
 func addTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var task db.Task
+	// 1. Явно используем UTC, чтобы избежать сдвигов из-за локального пояса сервера/теста
+	now := time.Now().UTC()
+	todayStr := now.Format("20060102")
+	todayTime, _ := time.Parse("20060102", todayStr)
 
-	err := json.NewDecoder(r.Body).Decode(&task)
-	if err != nil {
+	var task db.Task
+	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid JSON"})
 		return
 	}
@@ -31,17 +34,16 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
-
 	if task.Date == "" {
-		task.Date = now.Format(DateFormat)
+		task.Date = todayStr
 	}
 
-	taskTime, err := time.Parse(DateFormat, task.Date)
+	taskTime, err := time.Parse("20060102", task.Date)
 	if err != nil {
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid date format. Use YYYYMMDD"})
 		return
 	}
+	taskTime = taskTime.UTC()
 
 	if task.Repeat != "" {
 		nextDateStr, err := NextDate(now, task.Date, task.Repeat)
@@ -50,13 +52,12 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if !taskTime.After(now) {
+		if taskTime.Before(todayTime) {
 			task.Date = nextDateStr
 		}
-
 	} else {
-		if !taskTime.After(now) {
-			task.Date = now.Format(DateFormat)
+		if taskTime.Before(todayTime) {
+			task.Date = todayStr
 		}
 	}
 
@@ -66,5 +67,5 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]string{"id": fmt.Sprintf("%d", id)})
+	writeJSON(w, http.StatusCreated, map[string]any{"id": fmt.Sprintf("%d", id)})
 }
