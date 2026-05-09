@@ -18,7 +18,7 @@ func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 
 // addTaskHandler обрабатывает POST /api/task
 func addTaskHandler(w http.ResponseWriter, r *http.Request) {
-	// 1. Явно используем UTC, чтобы избежать сдвигов из-за локального пояса сервера/теста
+	// Явно используем UTC, чтобы избежать сдвигов из-за локального пояса сервера/теста
 	now := time.Now().UTC()
 	todayStr := now.Format("20060102")
 	todayTime, _ := time.Parse("20060102", todayStr)
